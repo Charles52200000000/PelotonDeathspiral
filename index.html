@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Peloton — Death Spiral</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0f;
+      --surface: #111118;
+      --border: #1e1e2e;
+      --red: #ef4444;
+      --red-dim: #7f1d1d;
+      --orange: #f97316;
+      --yellow: #eab308;
+      --green: #22c55e;
+      --muted: #6b7280;
+      --text: #e5e7eb;
+      --text-dim: #9ca3af;
+      --accent: #dc2626;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── HEADER ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 24px 40px;
+      border-bottom: 1px solid var(--border);
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .logo-icon {
+      width: 36px; height: 36px;
+      background: var(--accent);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+    }
+    .logo-text { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
+    .logo-sub  { font-size: 11px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; }
+    .badge {
+      background: #1a0505;
+      border: 1px solid var(--red-dim);
+      color: var(--red);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      padding: 6px 14px;
+      border-radius: 20px;
+    }
+
+    /* ── HERO ── */
+    .hero {
+      text-align: center;
+      padding: 60px 40px 40px;
+    }
+    .hero-label {
+      font-size: 11px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+    .hero-title {
+      font-size: clamp(48px, 8vw, 88px);
+      font-weight: 900;
+      letter-spacing: -3px;
+      line-height: 1;
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 40%, #991b1b 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero-sub {
+      font-size: 16px;
+      color: var(--text-dim);
+      margin-top: 16px;
+      max-width: 520px;
+      margin-left: auto;
+      margin-right: auto;
+      line-height: 1.6;
+    }
+    .hero-source {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 10px;
+      letter-spacing: 0.5px;
+    }
+
+    /* ── KPI ROW ── */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      margin: 0 0 48px;
+    }
+    .kpi {
+      background: var(--surface);
+      padding: 28px 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .kpi-label { font-size: 11px; color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase; }
+    .kpi-value { font-size: 28px; font-weight: 700; letter-spacing: -1px; }
+    .kpi-delta { font-size: 12px; font-weight: 500; }
+    .neg { color: var(--red); }
+    .pos { color: var(--green); }
+    .warn { color: var(--orange); }
+
+    /* ── SECTION ── */
+    .section { padding: 0 40px 56px; }
+    .section-header {
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .section-title {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+    .section-line {
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ── SPIRAL CHART ── */
+    .spiral-wrap {
+      display: flex;
+      gap: 40px;
+      align-items: flex-start;
+    }
+    .spiral-canvas-wrap {
+      position: relative;
+      flex-shrink: 0;
+    }
+    canvas#spiralCanvas {
+      display: block;
+    }
+    .spiral-legend {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding-top: 20px;
+    }
+    .spiral-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 18px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .spiral-legend-item:hover { border-color: var(--red); }
+    .spiral-legend-item.active { border-color: var(--red); background: #1a0505; }
+    .legend-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .legend-year { font-size: 13px; font-weight: 600; color: var(--text-dim); min-width: 36px; }
+    .legend-stat { font-size: 12px; color: var(--muted); flex: 1; }
+    .legend-val  { font-size: 13px; font-weight: 600; }
+
+    /* ── BAR CHARTS ── */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px;
+    }
+    .chart-card-title {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 24px;
+    }
+    .bar-group { display: flex; flex-direction: column; gap: 10px; }
+    .bar-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .bar-year { font-size: 12px; color: var(--muted); min-width: 32px; }
+    .bar-track {
+      flex: 1;
+      height: 28px;
+      background: #1a1a24;
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 1s cubic-bezier(0.4,0,0.2,1);
+      display: flex;
+      align-items: center;
+      padding-left: 10px;
+    }
+    .bar-fill span {
+      font-size: 11px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.85);
+      white-space: nowrap;
+    }
+    .bar-val { font-size: 12px; font-weight: 600; min-width: 70px; text-align: right; }
+
+    /* ── TIMELINE ── */
+    .timeline { display: flex; flex-direction: column; gap: 0; }
+    .timeline-item {
+      display: flex;
+      gap: 24px;
+      position: relative;
+    }
+    .timeline-item:not(:last-child)::before {
+      content: '';
+      position: absolute;
+      left: 19px;
+      top: 40px;
+      bottom: -20px;
+      width: 2px;
+      background: var(--border);
+    }
+    .timeline-dot {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-top: 4px;
+      border: 2px solid;
+      z-index: 1;
+    }
+    .timeline-body { padding-bottom: 32px; flex: 1; }
+    .timeline-year { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
+    .timeline-event { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+    .timeline-desc { font-size: 13px; color: var(--text-dim); line-height: 1.6; }
+    .timeline-metrics {
+      display: flex;
+      gap: 16px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+    .t-metric {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 14px;
+    }
+    .t-metric-label { font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+    .t-metric-val   { font-size: 14px; font-weight: 700; margin-top: 2px; }
+
+    /* ── STOCK CHART ── */
+    canvas#stockCanvas {
+      width: 100%;
+      height: 180px;
+      display: block;
+    }
+    .stock-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px;
+    }
+    .stock-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 20px;
+    }
+    .stock-price { font-size: 32px; font-weight: 700; letter-spacing: -1px; }
+    .stock-change { font-size: 13px; color: var(--red); margin-top: 4px; }
+    .stock-peak { text-align: right; }
+    .stock-peak-label { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+    .stock-peak-val { font-size: 20px; font-weight: 700; color: var(--text-dim); margin-top: 4px; }
+    .stock-peak-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 24px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .footer-left { font-size: 12px; color: var(--muted); }
+    .footer-right { font-size: 11px; color: #374151; }
+
+    /* ── TOOLTIP ── */
+    #tooltip {
+      position: fixed;
+      background: #1e1e2e;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 12px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s;
+      z-index: 999;
+      max-width: 200px;
+    }
+    #tooltip.show { opacity: 1; }
+    #tooltip strong { display: block; margin-bottom: 4px; font-size: 13px; }
+
+    @media (max-width: 900px) {
+      .kpi-row { grid-template-columns: 1fr 1fr; }
+      .charts-grid { grid-template-columns: 1fr; }
+      .spiral-wrap { flex-direction: column; }
+      header, .section, footer { padding-left: 20px; padding-right: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="tooltip"></div>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">🚴</div>
+    <div>
+      <div class="logo-text">PELOTON INTERACTIVE</div>
+      <div class="logo-sub">NASDAQ: PTON · Case Study</div>
+    </div>
+  </div>
+  <div class="badge">⚠ Death Spiral</div>
+</header>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-label">Financial Collapse Analysis · FY2020 – FY2024</div>
+  <div class="hero-title">DEATH<br>SPIRAL</div>
+  <div class="hero-sub">
+    From pandemic darling to restructuring crisis — Peloton lost $5.8B in cumulative net losses,
+    shed 97% of its stock value, and watched revenue collapse 33% from peak.
+  </div>
+  <div class="hero-source">Source: Peloton 10-K Annual Reports (SEC EDGAR) · FY2020–FY2024</div>
+</div>
+
+<!-- KPI ROW -->
+<div class="kpi-row">
+  <div class="kpi">
+    <div class="kpi-label">Peak Revenue (FY2021)</div>
+    <div class="kpi-value">$4.0B</div>
+    <div class="kpi-delta neg">↓ 32.8% to FY2024</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Cumulative Net Loss</div>
+    <div class="kpi-value neg">$5.8B</div>
+    <div class="kpi-delta neg">FY2020 – FY2024</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Stock Decline from Peak</div>
+    <div class="kpi-value neg">−97%</div>
+    <div class="kpi-delta neg">$171 → ~$5 (Jan '21 → '24)</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Employees Lost</div>
+    <div class="kpi-value warn">−69%</div>
+    <div class="kpi-delta warn">8,662 → 2,656 headcount</div>
+  </div>
+</div>
+
+<!-- SPIRAL SECTION -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-title">Revenue & Loss Spiral</div>
+    <div class="section-line"></div>
+  </div>
+  <div class="spiral-wrap">
+    <div class="spiral-canvas-wrap">
+      <canvas id="spiralCanvas" width="420" height="420"></canvas>
+    </div>
+    <div class="spiral-legend" id="spiralLegend"></div>
+  </div>
+</div>
+
+<!-- BAR CHARTS -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-title">Annual Financials · 10-K Data</div>
+    <div class="section-line"></div>
+  </div>
+  <div class="charts-grid">
+
+    <!-- Revenue -->
+    <div class="chart-card">
+      <div class="chart-card-title">Total Revenue ($ Millions)</div>
+      <div class="bar-group" id="revenueChart"></div>
+    </div>
+
+    <!-- Net Loss -->
+    <div class="chart-card">
+      <div class="chart-card-title">Net Income / Loss ($ Millions)</div>
+      <div class="bar-group" id="lossChart"></div>
+    </div>
+
+    <!-- Subscribers -->
+    <div class="chart-card">
+      <div class="chart-card-title">Connected Fitness Subscribers (Millions)</div>
+      <div class="bar-group" id="subsChart"></div>
+    </div>
+
+    <!-- Free Cash Flow -->
+    <div class="chart-card">
+      <div class="chart-card-title">Free Cash Flow ($ Millions)</div>
+      <div class="bar-group" id="fcfChart"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- STOCK CHART -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-title">Stock Price Collapse</div>
+    <div class="section-line"></div>
+  </div>
+  <div class="stock-wrap">
+    <div class="stock-header">
+      <div>
+        <div class="stock-price">~$5.18</div>
+        <div class="stock-change">Current Price (May 2026) · Market Cap ~$2.2B</div>
+      </div>
+      <div class="stock-peak">
+        <div class="stock-peak-label">All-Time High</div>
+        <div class="stock-peak-val">$171.09</div>
+        <div class="stock-peak-sub">January 14, 2021</div>
+      </div>
+    </div>
+    <canvas id="stockCanvas"></canvas>
+    <div style="display:flex;justify-content:space-between;margin-top:8px;">
+      <span style="font-size:11px;color:var(--muted)">Sep 2019 (IPO)</span>
+      <span style="font-size:11px;color:var(--muted)">Jan 2021 (Peak)</span>
+      <span style="font-size:11px;color:var(--muted)">FY2022 (Crash)</span>
+      <span style="font-size:11px;color:var(--muted)">FY2024</span>
+    </div>
+  </div>
+</div>
+
+<!-- TIMELINE -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-title">The Collapse Timeline</div>
+    <div class="section-line"></div>
+  </div>
+  <div class="timeline" id="timeline"></div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-left">
+    Data sourced from Peloton Interactive 10-K Annual Reports filed with the SEC (FY2020–FY2024).
+    Stock data approximate. For educational/case study purposes only.
+  </div>
+  <div class="footer-right">PTON · UNC Kenan-Flagler</div>
+</footer>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────
+const FY = ['FY2020','FY2021','FY2022','FY2023','FY2024'];
+
+const revenue  = [1826, 4022, 3582, 2800, 2701]; // $M
+const netIncome= [-71.6, -189, -2828, -1262, -552]; // $M
+const subs     = [1.09, 2.33, 2.96, 3.08, 2.98]; // M connected fitness
+const fcf      = [-246, -492, -2357, -470, -85.8]; // $M
+
+// Spiral colors: green → yellow → orange → red → deep red
+const spiralColors = ['#22c55e','#eab308','#f97316','#ef4444','#991b1b'];
+
+// Stock price approximation (quarterly points)
+const stockData = [
+  {label:'IPO Sep\'19', price: 27},
+  {label:'Dec\'19', price: 32},
+  {label:'Mar\'20', price: 18},
+  {label:'Jun\'20', price: 58},
+  {label:'Sep\'20', price: 95},
+  {label:'Dec\'20', price: 145},
+  {label:'Jan\'21 PEAK', price: 171},
+  {label:'Jun\'21', price: 118},
+  {label:'Sep\'21', price: 97},
+  {label:'Dec\'21', price: 51},
+  {label:'Mar\'22', price: 28},
+  {label:'Jun\'22', price: 9},
+  {label:'Sep\'22', price: 8},
+  {label:'Dec\'22', price: 7},
+  {label:'Jun\'23', price: 8},
+  {label:'Dec\'23', price: 5.5},
+  {label:'Jun\'24', price: 3.5},
+  {label:'May\'26', price: 5.18},
+];
+
+const timelineEvents = [
+  {
+    year: 'FY2020', color: '#22c55e', borderColor: '#15803d',
+    event: 'Pandemic Boom — The Golden Year',
+    desc: 'COVID-19 lockdowns trigger explosive demand for at-home fitness. Revenue surges 100% YoY to $1.8B. Connected fitness subscribers nearly double to 1.09M.',
+    metrics: [
+      {label:'Revenue', val:'$1.83B', color:'#22c55e'},
+      {label:'Net Loss', val:'-$72M', color:'#eab308'},
+      {label:'Subscribers', val:'1.09M', color:'#22c55e'},
+    ]
+  },
+  {
+    year: 'FY2021', color: '#eab308', borderColor: '#a16207',
+    event: 'Peak & Warning Signs Emerge',
+    desc: 'Revenue peaks at $4.0B (+120% YoY) as pandemic demand maxes out. Tread recall costs mount. Supply chain issues surface. Net loss widens to $189M despite record revenue.',
+    metrics: [
+      {label:'Revenue', val:'$4.02B', color:'#22c55e'},
+      {label:'Net Loss', val:'-$189M', color:'#f97316'},
+      {label:'Subscribers', val:'2.33M', color:'#22c55e'},
+    ]
+  },
+  {
+    year: 'FY2022', color: '#f97316', borderColor: '#c2410c',
+    event: 'Catastrophic Collapse — $2.8B Loss',
+    desc: 'Post-pandemic demand evaporates. Tread+ recall costs $165M+. CEO John Foley resigns. Massive inventory write-downs. Revenue falls 11% but net loss explodes to $2.83B — the worst year.',
+    metrics: [
+      {label:'Revenue', val:'$3.58B', color:'#eab308'},
+      {label:'Net Loss', val:'-$2.83B', color:'#ef4444'},
+      {label:'FCF', val:'-$2.36B', color:'#ef4444'},
+    ]
+  },
+  {
+    year: 'FY2023', color: '#ef4444', borderColor: '#991b1b',
+    event: 'Restructuring & Mass Layoffs',
+    desc: 'New CEO Barry McCarthy launches turnaround. Revenue falls to $2.8B (-22%). 5,000+ employees laid off. Manufacturing outsourced. $1.26B net loss. Debt refinancing begins.',
+    metrics: [
+      {label:'Revenue', val:'$2.80B', color:'#f97316'},
+      {label:'Net Loss', val:'-$1.26B', color:'#ef4444'},
+      {label:'Employees', val:'~3,800', color:'#f97316'},
+    ]
+  },
+  {
+    year: 'FY2024', color: '#991b1b', borderColor: '#7f1d1d',
+    event: 'Stabilization — Still Deep in the Hole',
+    desc: 'Revenue declines further to $2.7B but losses narrow significantly to $552M. Positive Adjusted EBITDA achieved for first time in years. Debt reduced ~$200M. CEO McCarthy departs.',
+    metrics: [
+      {label:'Revenue', val:'$2.70B', color:'#eab308'},
+      {label:'Net Loss', val:'-$552M', color:'#ef4444'},
+      {label:'FCF', val:'-$86M', color:'#f97316'},
+    ]
+  },
+];
+
+// ── SPIRAL CHART ──────────────────────────────────────────────────────────
+function drawSpiral() {
+  const canvas = document.getElementById('spiralCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const cx = W/2, cy = H/2;
+
+  ctx.clearRect(0,0,W,H);
+
+  // Background circle
+  ctx.beginPath();
+  ctx.arc(cx, cy, W/2 - 10, 0, Math.PI*2);
+  ctx.fillStyle = '#0d0d15';
+  ctx.fill();
+
+  const maxRev = Math.max(...revenue);
+  const minRadius = 30;
+  const maxRadius = 170;
+
+  // Draw spiral arms
+  for (let i = 0; i < FY.length; i++) {
+    const startAngle = (i / FY.length) * Math.PI * 2 - Math.PI/2;
+    const endAngle   = ((i+1) / FY.length) * Math.PI * 2 - Math.PI/2;
+    const r = minRadius + (revenue[i] / maxRev) * (maxRadius - minRadius);
+
+    // Outer arc (revenue)
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r, startAngle, endAngle);
+    ctx.closePath();
+    ctx.fillStyle = spiralColors[i] + '33';
+    ctx.fill();
+    ctx.strokeStyle = spiralColors[i];
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Loss indicator (inner ring)
+    const lossRatio = Math.abs(netIncome[i]) / 3000;
+    const lossR = minRadius * 0.6 + lossRatio * 40;
+    ctx.beginPath();
+    ctx.arc(cx, cy, lossR, startAngle, endAngle);
+    ctx.strokeStyle = spiralColors[i];
+    ctx.lineWidth = 6;
+    ctx.stroke();
+
+    // Label
+    const midAngle = (startAngle + endAngle) / 2;
+    const labelR = r + 18;
+    const lx = cx + Math.cos(midAngle) * labelR;
+    const ly = cy + Math.sin(midAngle) * labelR;
+    ctx.fillStyle = spiralColors[i];
+    ctx.font = 'bold 11px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(FY[i].replace('FY',''), lx, ly);
+  }
+
+  // Center label
+  ctx.fillStyle = '#e5e7eb';
+  ctx.font = 'bold 14px Inter, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('PTON', cx, cy - 8);
+  ctx.fillStyle = '#6b7280';
+  ctx.font = '10px Inter, sans-serif';
+  ctx.fillText('Revenue', cx, cy + 8);
+}
+
+// Build legend
+function buildSpiralLegend() {
+  const el = document.getElementById('spiralLegend');
+  FY.forEach((fy, i) => {
+    const item = document.createElement('div');
+    item.className = 'spiral-legend-item';
+    item.innerHTML = `
+      <div class="legend-dot" style="background:${spiralColors[i]}"></div>
+      <div class="legend-year">${fy}</div>
+      <div class="legend-stat">Rev $${(revenue[i]/1000).toFixed(2)}B · Loss $${Math.abs(netIncome[i]/1000).toFixed(2)}B</div>
+      <div class="legend-val" style="color:${spiralColors[i]}">${netIncome[i] < 0 ? '↓' : '↑'}</div>
+    `;
+    el.appendChild(item);
+  });
+}
+
+// ── BAR CHARTS ────────────────────────────────────────────────────────────
+function buildBar(containerId, data, maxVal, fmt, colorFn) {
+  const el = document.getElementById(containerId);
+  FY.forEach((fy, i) => {
+    const pct = Math.abs(data[i]) / maxVal * 100;
+    const color = colorFn(i, data[i]);
+    const row = document.createElement('div');
+    row.className = 'bar-row';
+    row.innerHTML = `
+      <div class="bar-year">${fy.replace('FY','')}</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:${pct}%;background:${color}20;border-left:3px solid ${color}">
+          <span style="color:${color}">${fmt(data[i])}</span>
+        </div>
+      </div>
+      <div class="bar-val" style="color:${color}">${fmt(data[i])}</div>
+    `;
+    el.appendChild(row);
+  });
+}
+
+// Revenue bars
+buildBar('revenueChart', revenue, Math.max(...revenue),
+  v => `$${(v/1000).toFixed(2)}B`,
+  (i) => spiralColors[i]
+);
+
+// Net loss bars
+buildBar('lossChart', netIncome, 3000,
+  v => v < 0 ? `-$${Math.abs(v/1000).toFixed(2)}B` : `+$${(v/1000).toFixed(2)}B`,
+  (i, v) => v < 0 ? spiralColors[i] : '#22c55e'
+);
+
+// Subscribers
+buildBar('subsChart', subs, Math.max(...subs),
+  v => `${v.toFixed(2)}M`,
+  (i) => spiralColors[i]
+);
+
+// FCF
+buildBar('fcfChart', fcf, 2500,
+  v => v < 0 ? `-$${Math.abs(v/1000).toFixed(2)}B` : `+$${(v/1000).toFixed(2)}B`,
+  (i, v) => v < 0 ? spiralColors[i] : '#22c55e'
+);
+
+// ── STOCK CHART ───────────────────────────────────────────────────────────
+function drawStock() {
+  const canvas = document.getElementById('stockCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.offsetWidth || 800;
+  const H = 180;
+  canvas.width = W;
+  canvas.height = H;
+
+  const prices = stockData.map(d => d.price);
+  const maxP = Math.max(...prices);
+  const minP = Math.min(...prices);
+  const pad = { top: 20, bottom: 20, left: 10, right: 10 };
+  const chartW = W - pad.left - pad.right;
+  const chartH = H - pad.top - pad.bottom;
+
+  const xStep = chartW / (prices.length - 1);
+  const yScale = p => pad.top + chartH - ((p - minP) / (maxP - minP)) * chartH;
+
+  // Gradient fill
+  const grad = ctx.createLinearGradient(0, pad.top, 0, H);
+  grad.addColorStop(0, 'rgba(239,68,68,0.4)');
+  grad.addColorStop(1, 'rgba(239,68,68,0.02)');
+
+  ctx.beginPath();
+  ctx.moveTo(pad.left, yScale(prices[0]));
+  prices.forEach((p, i) => {
+    ctx.lineTo(pad.left + i * xStep, yScale(p));
+  });
+  ctx.lineTo(pad.left + (prices.length-1)*xStep, H);
+  ctx.lineTo(pad.left, H);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  ctx.moveTo(pad.left, yScale(prices[0]));
+  prices.forEach((p, i) => {
+    ctx.lineTo(pad.left + i * xStep, yScale(p));
+  });
+  ctx.strokeStyle = '#ef4444';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Peak dot
+  const peakIdx = prices.indexOf(maxP);
+  ctx.beginPath();
+  ctx.arc(pad.left + peakIdx*xStep, yScale(maxP), 5, 0, Math.PI*2);
+  ctx.fillStyle = '#22c55e';
+  ctx.fill();
+
+  // Peak label
+  ctx.fillStyle = '#22c55e';
+  ctx.font = 'bold 10px Inter, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('$171 PEAK', pad.left + peakIdx*xStep, yScale(maxP) - 12);
+
+  // Grid lines
+  ctx.strokeStyle = '#1e1e2e';
+  ctx.lineWidth = 1;
+  [50, 100, 150].forEach(p => {
+    if (p >= minP && p <= maxP) {
+      const y = yScale(p);
+      ctx.beginPath();
+      ctx.moveTo(pad.left, y);
+      ctx.lineTo(W - pad.right, y);
+      ctx.stroke();
+      ctx.fillStyle = '#374151';
+      ctx.font = '10px Inter, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('$'+p, pad.left+4, y-3);
+    }
+  });
+}
+
+// ── TIMELINE ──────────────────────────────────────────────────────────────
+function buildTimeline() {
+  const el = document.getElementById('timeline');
+  timelineEvents.forEach(ev => {
+    const item = document.createElement('div');
+    item.className = 'timeline-item';
+    const metricsHTML = ev.metrics.map(m =>
+      `<div class="t-metric">
+        <div class="t-metric-label">${m.label}</div>
+        <div class="t-metric-val" style="color:${m.color}">${m.val}</div>
+      </div>`
+    ).join('');
+    item.innerHTML = `
+      <div class="timeline-dot" style="background:${ev.color}22;color:${ev.color};border-color:${ev.borderColor}">
+        ${ev.year.replace('FY','')}
+      </div>
+      <div class="timeline-body">
+        <div class="timeline-year">${ev.year}</div>
+        <div class="timeline-event">${ev.event}</div>
+        <div class="timeline-desc">${ev.desc}</div>
+        <div class="timeline-metrics">${metricsHTML}</div>
+      </div>
+    `;
+    el.appendChild(item);
+  });
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────
+drawSpiral();
+buildSpiralLegend();
+buildTimeline();
+window.addEventListener('load', drawStock);
+window.addEventListener('resize', drawStock);
+
+// Animate bars on load
+setTimeout(() => {
+  document.querySelectorAll('.bar-fill').forEach(b => {
+    const w = b.style.width;
+    b.style.width = '0';
+    setTimeout(() => { b.style.width = w; }, 100);
+  });
+}, 200);
+</script>
+</body>
+</html>
